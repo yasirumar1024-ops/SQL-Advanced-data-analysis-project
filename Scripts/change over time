@@ -1,0 +1,132 @@
+/*========================================================================================================
+    📊 CHANGE OVER TIME ANALYSIS
+    Description:
+        This section analyzes sales performance over different time dimensions:
+        - Yearly
+        - Monthly
+        - Daily
+
+    Metrics:
+        - Total Sales
+        - Number of Customers
+        - Total Quantity Sold
+========================================================================================================*/
+
+-- ====================================================================================
+-- 🟦 YEARLY ANALYSIS
+-- ====================================================================================
+
+-- Method 1: Using YEAR()
+SELECT
+    YEAR(order_date) AS order_year,
+    SUM(sales_amount) AS total_sales,
+    COUNT(DISTINCT customer_key) AS total_customers,
+    SUM(quantity) AS total_quantity
+FROM gold.fact_sales
+WHERE order_date IS NOT NULL
+GROUP BY YEAR(order_date)
+ORDER BY order_year;
+
+
+-- Method 2: Using DATETRUNC()
+SELECT
+    DATETRUNC(YEAR, order_date) AS order_year,
+    SUM(sales_amount) AS total_sales,
+    COUNT(DISTINCT customer_key) AS total_customers,
+    SUM(quantity) AS total_quantity
+FROM gold.fact_sales
+WHERE order_date IS NOT NULL
+GROUP BY DATETRUNC(YEAR, order_date)
+ORDER BY order_year;
+
+
+-- Method 3: Using FORMAT()
+SELECT
+    FORMAT(order_date, 'yyyy-MMM') AS order_year,
+    SUM(sales_amount) AS total_sales,
+    COUNT(DISTINCT customer_key) AS total_customers,
+    SUM(quantity) AS total_quantity
+FROM gold.fact_sales
+WHERE order_date IS NOT NULL
+GROUP BY FORMAT(order_date, 'yyyy-MMM')
+ORDER BY order_year;
+
+
+-- ====================================================================================
+-- 🟩 MONTHLY ANALYSIS
+-- ====================================================================================
+
+-- Method 1: Using MONTH()
+SELECT
+    MONTH(order_date) AS order_month,
+    SUM(sales_amount) AS total_sales,
+    COUNT(DISTINCT customer_key) AS total_customers,
+    SUM(quantity) AS total_quantity
+FROM gold.fact_sales
+WHERE order_date IS NOT NULL
+GROUP BY MONTH(order_date)
+ORDER BY order_month;
+
+
+-- Method 2: Using DATETRUNC()
+SELECT
+    DATETRUNC(MONTH, order_date) AS order_month,
+    SUM(sales_amount) AS total_sales,
+    COUNT(DISTINCT customer_key) AS total_customers,
+    SUM(quantity) AS total_quantity
+FROM gold.fact_sales
+WHERE order_date IS NOT NULL
+GROUP BY DATETRUNC(MONTH, order_date)
+ORDER BY order_month;
+
+
+-- Method 3: Using FORMAT()
+SELECT
+    FORMAT(order_date, 'MMM') AS order_month,
+    SUM(sales_amount) AS total_sales,
+    COUNT(DISTINCT customer_key) AS total_customers,
+    SUM(quantity) AS total_quantity
+FROM gold.fact_sales
+WHERE order_date IS NOT NULL
+GROUP BY FORMAT(order_date, 'MMM');
+-- Note: Avoid ORDER BY here due to alphabetical sorting issue
+
+
+-- ====================================================================================
+-- 🟥 DAILY ANALYSIS
+-- ====================================================================================
+
+-- Method 1: Using DAY()
+SELECT
+    DAY(order_date) AS order_day,
+    SUM(sales_amount) AS total_sales,
+    COUNT(DISTINCT customer_key) AS total_customers,
+    SUM(quantity) AS total_quantity
+FROM gold.fact_sales
+WHERE order_date IS NOT NULL
+GROUP BY DAY(order_date)
+ORDER BY order_day;
+
+
+-- Method 2: Using DATETRUNC()
+SELECT
+    DATETRUNC(DAY, order_date) AS order_day,
+    SUM(sales_amount) AS total_sales,
+    COUNT(DISTINCT customer_key) AS total_customers,
+    SUM(quantity) AS total_quantity
+FROM gold.fact_sales
+WHERE order_date IS NOT NULL
+GROUP BY DATETRUNC(DAY, order_date)
+ORDER BY order_day;
+
+
+-- Method 3: Using FORMAT()
+SELECT
+    FORMAT(order_date, 'ddd') AS day_name,
+    SUM(sales_amount) AS total_sales,
+    COUNT(DISTINCT customer_key) AS total_customers,
+    SUM(quantity) AS total_quantity
+FROM gold.fact_sales
+WHERE order_date IS NOT NULL
+GROUP BY FORMAT(order_date, 'ddd');
+-- Note: Sorting is not applied due to weekday name formatting
