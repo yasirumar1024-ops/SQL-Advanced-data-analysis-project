@@ -1,0 +1,112 @@
+/*========================================================================================================
+    📊 PRODUCTS REPORT VIEW
+    Purpose:
+        - Consolidates key product metrics and behavior
+        - Segments products by revenue performance
+        - Calculates aggregated KPIs for product analytics
+
+    Metrics & KPIs:
+        - Total orders
+        - Total sales
+        - Total quantity sold
+        - Total customers (unique)
+        - Lifespan (months)
+        - Recency (months since last sale)
+        - Average Selling Price
+        - Average Order Revenue (AOR)
+        - Average Monthly Revenue
+========================================================================================================*/
+
+
+-- ====================================================================================
+-- Step 1: Base Query - Retrieve core product and transaction details
+-- ====================================================================================
+CREATE OR ALTER VIEW gold.report_products AS 
+WITH base_query AS
+(
+    SELECT
+        f.order_number,
+        f.order_date,
+        f.customer_key,
+        f.sales_amount,
+        f.quantity,
+        d.product_key,
+        d.product_name,
+        d.category,
+        d.subcategory,
+        d.cost
+    FROM gold.fact_sales AS f
+    LEFT JOIN gold.dim_products AS d
+        ON f.product_key = d.product_key
+    WHERE f.order_date IS NOT NULL
+),
+
+
+-- ====================================================================================
+-- Step 2: Product Aggregation - Summarize metrics at product level
+-- ====================================================================================
+product_aggregation AS
+(
+    SELECT
+        product_key,
+        product_name,
+        category,
+        subcategory,
+        cost,
+        DATEDIFF(MONTH, MIN(order_date), MAX(order_date)) AS lifespan,
+        MAX(order_date) AS last_sale_date,
+        COUNT(DISTINCT order_number) AS total_orders,
+        COUNT(DISTINCT customer_key) AS total_customers,
+        SUM(sales_amount) AS total_sales,
+        SUM(quantity) AS total_quantity,
+        ROUND(AVG(CAST(sales_amount AS FLOAT) / NULLIF(quantity,0)), 2) AS avg_selling_price
+    FROM base_query
+    GROUP BY
+        product_key,
+        product_name,
+        category,
+        subcategory,
+        cost
+)
+
+
+-- ====================================================================================
+-- Step 3: Final Report - Add Segmentation and KPIs
+-- ====================================================================================
+SELECT
+    product_key,
+    product_name,
+    category,
+    subcategory,
+    cost,
+    last_sale_date,
+    DATEDIFF(MONTH, last_sale_date, GETDATE()) AS recency_in_months,
+
+    -- Product Segment by Total Sales
+    CASE
+        WHEN total_sales > 50000 THEN 'High-Performer'
+        WHEN total_sales >= 10000 THEN 'Mid-Range'
+        ELSE 'Low Performer'
+    END AS product_segment,
+
+    lifespan,
+    total_orders,
+    total_sales,
+    total_quantity,
+    total_customers,
+    avg_selling_price,
+
+    -- Average Order Revenue (AOR)
+    CASE
+        WHEN total_orders = 0 THEN 0
+        ELSE total_sales / total_orders
+    END AS avg_order_revenue,
+
+    -- Average Monthly Revenue
+    CASE
+        WHEN lifespan = 0 THEN total_sales
+        ELSE total_sales / lifespan
+    END AS avg_monthly_revenue
+
+FROM product_aggregation
+ORDER BY product_segment DESC, total_sales DESC;
