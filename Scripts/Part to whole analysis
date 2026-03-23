@@ -1,0 +1,41 @@
+/*========================================================================================================
+    📊 PART-TO-WHOLE ANALYSIS
+    Description:
+        This analysis identifies which product categories contribute the most to overall sales.
+
+    Metrics Calculated:
+        - Total Sales per Category
+        - Overall Sales
+        - Percentage Contribution of Each Category
+========================================================================================================*/
+
+
+-- ====================================================================================
+-- Step 1: Calculate Total Sales per Category
+-- ====================================================================================
+WITH category_sales AS
+(
+    SELECT
+        d.category,
+        SUM(f.sales_amount) AS total_sales
+    FROM gold.fact_sales AS f
+    LEFT JOIN gold.dim_products AS d
+        ON f.product_key = d.product_key
+    GROUP BY d.category
+)
+
+
+-- ====================================================================================
+-- Step 2: Calculate Part-to-Whole Contribution
+-- ====================================================================================
+SELECT
+    category,
+    total_sales,
+    SUM(total_sales) OVER () AS overall_sales,  -- Total sales across all categories
+    CONCAT(
+        ROUND(
+            CAST(total_sales AS FLOAT) / SUM(total_sales) OVER () * 100, 2
+        ), '%'
+    ) AS percentage_total_sales
+FROM category_sales
+ORDER BY percentage_total_sales DESC;
