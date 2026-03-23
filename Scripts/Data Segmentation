@@ -1,0 +1,67 @@
+/*========================================================================================================
+    📊 DATA SEGMENTATION ANALYSIS
+    Description:
+        This section segments products by cost ranges and customers by spending behavior.
+        - Helps identify product tiers and customer types for targeted business strategies.
+========================================================================================================*/
+
+
+-- ====================================================================================
+-- Step 1: Segment Products by Cost
+-- ====================================================================================
+WITH product_segments AS
+(
+    SELECT
+        product_key,
+        product_name,
+        cost,
+        CASE
+            WHEN cost < 100 THEN 'Below 100'
+            WHEN cost BETWEEN 100 AND 500 THEN '100-500'
+            WHEN cost BETWEEN 500 AND 1000 THEN '500-1000'
+            ELSE 'Above 1000'
+        END AS cost_range
+    FROM gold.dim_products
+)
+SELECT
+    cost_range,
+    COUNT(product_key) AS total_products
+FROM product_segments
+GROUP BY cost_range
+ORDER BY cost_range;
+
+
+-- ====================================================================================
+-- Step 2: Segment Customers by Spending Behavior
+-- ====================================================================================
+/*
+    Customer Segments:
+        - VIP: Lifespan >= 12 months AND total spending > 5000
+        - Regular: Lifespan >= 12 months AND total spending <= 5000
+        - New: Lifespan < 12 months
+*/
+
+WITH customer_behaviour AS
+(
+    SELECT
+        d.customer_key,
+        SUM(f.sales_amount) AS total_spending,
+        MIN(f.order_date) AS first_order,
+        MAX(f.order_date) AS last_order,
+        DATEDIFF(MONTH, MIN(f.order_date), MAX(f.order_date)) AS lifespan
+    FROM gold.fact_sales AS f
+    LEFT JOIN gold.dim_customers AS d
+        ON f.customer_key = d.customer_key
+    GROUP BY d.customer_key
+)
+SELECT
+    customer_key,
+    total_spending,
+    lifespan,
+    CASE
+        WHEN lifespan >= 12 AND total_spending > 5000 THEN 'VIP'
+        WHEN lifespan >= 12 AND total_spending <= 5000 THEN 'Regular'
+        ELSE 'New'
+    END AS customer_segment
+FROM customer_behaviour
+ORDER BY customer_segment, total_spending DESC;
