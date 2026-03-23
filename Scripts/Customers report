@@ -1,0 +1,114 @@
+/*========================================================================================================
+    📊 CUSTOMERS REPORT VIEW
+    Purpose:
+        - Consolidates key customer metrics and behaviors
+        - Segments customers by age group and spending behavior
+        - Calculates aggregated KPIs for customer analytics
+
+    Metrics & KPIs:
+        - Total orders
+        - Total sales
+        - Total quantity purchased
+        - Total products purchased
+        - Lifespan (months)
+        - Recency (months since last order)
+        - Average Order Value (AOV)
+        - Average Monthly Spend
+========================================================================================================*/
+
+
+-- ====================================================================================
+-- Step 1: Base Query - Retrieve core customer and transaction details
+-- ====================================================================================
+CREATE OR ALTER VIEW gold.report_customers AS
+WITH base_query AS 
+(
+    SELECT
+        f.order_number,
+        f.product_key,
+        f.order_date,
+        f.sales_amount,
+        f.quantity,
+        d.customer_key,
+        d.customer_number,
+        CONCAT(d.first_name, ' ', d.last_name) AS customer_name,
+        DATEDIFF(YEAR, d.birthdate, GETDATE()) AS age
+    FROM gold.fact_sales AS f
+    LEFT JOIN gold.dim_customers AS d
+        ON f.customer_key = d.customer_key
+    WHERE f.order_date IS NOT NULL
+),
+
+
+-- ====================================================================================
+-- Step 2: Customer Aggregation - Summarize metrics at customer level
+-- ====================================================================================
+customer_aggregation AS
+(
+    SELECT
+        customer_key,
+        customer_number,
+        customer_name,
+        age,
+        COUNT(DISTINCT order_number) AS total_orders,
+        SUM(sales_amount) AS total_sales,
+        SUM(quantity) AS total_quantity,
+        COUNT(DISTINCT product_key) AS total_products,
+        DATEDIFF(MONTH, MIN(order_date), MAX(order_date)) AS lifespan,
+        MAX(order_date) AS last_order_date
+    FROM base_query
+    GROUP BY
+        customer_key,
+        customer_number,
+        customer_name,
+        age
+)
+
+
+-- ====================================================================================
+-- Step 3: Final Report - Add Segmentation and KPIs
+-- ====================================================================================
+SELECT
+    customer_key,
+    customer_number,
+    customer_name,
+    age,
+
+    -- Age Group Segmentation
+    CASE
+        WHEN age < 20 THEN 'Under 20'
+        WHEN age BETWEEN 20 AND 29 THEN '20-29'
+        WHEN age BETWEEN 30 AND 39 THEN '30-39'
+        WHEN age BETWEEN 40 AND 49 THEN '40-49'
+        ELSE 'Above 50'
+    END AS age_group,
+
+    -- Customer Segment based on spending & lifespan
+    CASE
+        WHEN lifespan >= 12 AND total_sales > 5000 THEN 'VIP'
+        WHEN lifespan >= 12 AND total_sales <= 5000 THEN 'Regular'
+        ELSE 'New'
+    END AS customer_segment,
+
+    last_order_date,
+    DATEDIFF(MONTH, last_order_date, GETDATE()) AS recency,
+    total_orders,
+    total_sales,
+    total_quantity,
+    total_products,
+    lifespan,
+
+    -- Average Order Value (AOV)
+    CASE
+        WHEN total_orders = 0 THEN 0
+        ELSE total_sales / total_orders
+    END AS avg_order_value,
+
+    -- Average Monthly Spend
+    CASE
+        WHEN lifespan = 0 THEN total_sales
+        ELSE total_sales / lifespan
+    END AS avg_monthly_spend
+
+FROM customer_aggregation
+ORDER BY customer_segment, total_sales DESC;
